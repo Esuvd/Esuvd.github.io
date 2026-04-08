@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="mn" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Хүрдний Мастер</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;700;800;900&amp;family=Noto+Sans+Mongolian&amp;display=swap" rel="stylesheet">
+  <style>
+html, body { height: 100%; margin: 0; }
+* { font-family: 'Rubik', 'Noto Sans Mongolian', sans-serif; }
+
+body {
+  background: #0f0f1a;
+  color: #e2e8f0;
+}
+
+.app-wrapper {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.neon-border {
+  border: 2px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.1), inset 0 0 15px rgba(139, 92, 246, 0.05);
+}
+
+.table-card {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 16px;
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+}
+.table-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.3);
+}
+
+.table-num {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 1.5rem;
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  color: white;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+}
+
+.game-card {
+  background: linear-gradient(135deg, #1e1e3a 0%, #1a1a2e 100%);
+  border-radius: 20px;
+  padding: 24px;
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.game-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, #8b5cf6, #ec4899, #f59e0b);
+}
+.game-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 40px rgba(139, 92, 246, 0.3);
+}
+
+/* Wheel */
+.wheel-container { position: relative; width: 300px; height: 300px; margin: 0 auto; }
+.wheel-svg { width: 100%; height: 100%; transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); }
+.wheel-pointer {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 14px solid transparent; border-right: 14px solid transparent;
+  border-top: 28px solid #f59e0b;
+  filter: drop-shadow(0 2px 6px rgba(245,158,11,0.6));
+  z-index: 10;
+}
+
+.spin-btn {
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  border: none; color: white; padding: 12px 32px;
+  border-radius: 50px; font-weight: 700; font-size: 1.1rem;
+  cursor: pointer; transition: all 0.3s;
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+}
+.spin-btn:hover { transform: scale(1.05); box-shadow: 0 6px 25px rgba(139, 92, 246, 0.6); }
+.spin-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.result-box {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border: 2px solid #8b5cf6;
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  min-height: 80px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: 700;
+}
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+.modal-content {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border: 2px solid #8b5cf6;
+  border-radius: 24px;
+  max-width: 500px; width: 90%;
+  max-height: 85%;
+  overflow-y: auto;
+  padding: 32px;
+  position: relative;
+}
+
+.score-bar {
+  height: 8px; border-radius: 4px; background: #2a2a4a;
+  overflow: hidden;
+}
+.score-fill {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, #8b5cf6, #ec4899);
+  transition: width 0.5s ease;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.5s ease forwards; }
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(139,92,246,0.3); }
+  50% { box-shadow: 0 0 25px rgba(139,92,246,0.6); }
+}
+
+.correct-flash { animation: correctFlash 0.6s ease; }
+@keyframes correctFlash {
+  0% { background-color: rgba(34,197,94,0.3); }
+  100% { background-color: transparent; }
+}
+.wrong-flash { animation: wrongFlash 0.6s ease; }
+@keyframes wrongFlash {
+  0% { background-color: rgba(239,68,68,0.3); }
+  100% { background-color: transparent; }
+}
+
+.tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+</style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body>
+  <div class="app-wrapper" id="appWrapper"><!-- Header -->
+   <header class="text-center py-8 px-4 relative" style="background: linear-gradient(180deg, rgba(139,92,246,0.15) 0%, transparent 100%);">
+    <div class="absolute top-4 left-6" style="width: 56px; height: 56px; background: linear-gradient(135deg, #8b5cf6, #ec4899); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; color: white; box-shadow: 0 4px 15px rgba(139,92,246,0.4);">
+     6в
+    </div>
+    <p class="absolute top-4 right-6 text-5xl font-black" style="color: #f59e0b; text-shadow: 0 0 20px rgba(245,158,11,0.6);">SUVD</p>
+    <h1 id="mainTitle" class="text-4xl md:text-5xl font-black mb-2" style="background: linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Хүрдний Мастер</h1>
+    <p class="text-gray-400 text-lg">Үржвэрийн хүснэгтийг хүрдээр суралц 🎯</p>
+   </header><!-- Multiplication Tables Section -->
+   <section class="px-4 md:px-8 mb-12">
+    <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><span style="color: #8b5cf6;">📊</span> Үржвэрийн хүснэгт (1–10)</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4" id="tablesGrid">
+    </div>
+   </section><!-- Games Section -->
+   <section class="px-4 md:px-8 pb-12">
+    <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><span style="color: #ec4899;">🎮</span> Тоглоомууд</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="gamesGrid">
+    </div>
+   </section><!-- Health & Wellness Tips Section -->
+   <section class="px-4 md:px-8 pb-12">
+    <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><span style="color: #10b981;">💡</span> Суралцахдаа сайн байх зөвлөмж</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6"><!-- Water Tip -->
+     <div class="game-card neon-border" style="border-color: rgba(16,185,129,0.3); box-shadow: 0 0 15px rgba(16,185,129,0.1), inset 0 0 15px rgba(16,185,129,0.05);">
+      <div class="text-4xl mb-3">
+       💧
+      </div>
+      <h3 class="text-xl font-bold mb-2">Ус уу регулярээр</h3>
+      <p class="text-gray-400 text-sm">Өдөрт дор хаяж 6-8 аяга ус ууж суралцацгаая. Энэ нь ам, толгойн шарх багасгаж, сэтгэлгээг сайжруулдаг.</p>
+     </div><!-- Study Tips -->
+     <div class="game-card neon-border" style="border-color: rgba(59,130,246,0.3); box-shadow: 0 0 15px rgba(59,130,246,0.1), inset 0 0 15px rgba(59,130,246,0.05);">
+      <div class="text-4xl mb-3">
+       📚
+      </div>
+      <h3 class="text-xl font-bold mb-2">Сайн суралцах байдал</h3>
+      <p class="text-gray-400 text-sm">• 25 минут суралца, 5 минут амарна<br>
+       • Эргүүлэх сургалт хий<br>
+       • Өдөр бүр дадлага бод<br>
+       • Өнгөлөг бичиг ашигла</p>
+     </div><!-- Exercise Tips -->
+     <div class="game-card neon-border" style="border-color: rgba(245,158,11,0.3); box-shadow: 0 0 15px rgba(245,158,11,0.1), inset 0 0 15px rgba(245,158,11,0.05);">
+      <div class="text-4xl mb-3">
+       🏃
+      </div>
+      <h3 class="text-xl font-bold mb-2">Биеийн дасгал хөдөлгөөн</h3>
+      <p class="text-gray-400 text-sm">Өдөрт 30 минут сайн биеийн дасгал хөдөлгөөн хий. Суралцахын өмнө эсвэл дараа цөөн хугацаа алхалт хий, энэ нь оюуны идэвхийг сайжруулдаг.</p>
+     </div><!-- Health Tips -->
+     <div class="game-card neon-border" style="border-color: rgba(236,72,153,0.3); box-shadow: 0 0 15px rgba(236,72,153,0.1), inset 0 0 15px rgba(236,72,153,0.05);">
+      <div class="text-4xl mb-3">
+       😴
+      </div>
+      <h3 class="text-xl font-bold mb-2">Нэмэлт сайн дадал</h3>
+      <p class="text-gray-400 text-sm">• 8-10 цаг унтна<br>
+       • Үйлчилгээний цагийг урт ашигла<br>
+       • Суралцахдаа сайн гэрэл үүсгэ<br>
+       • Дэнлүүний үзүүлэлтээс зай ав</p>
+     </div>
+    </div>
+   </section><!-- Table Detail Modal -->
+   <footer class="text-center py-6 px-4 mt-12 border-t border-gray-700">
+    <p class="text-sm text-gray-500">Umnugovi aimag Dalanzadgad sumiin 5 dugaar surguuli</p>
+   </footer><!-- Table Detail Modal -->
+   <div class="modal-overlay" id="tableModal">
+    <div class="modal-content"><button onclick="closeTableModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white" aria-label="Хаах"> <i data-lucide="x" style="width:24px;height:24px;"></i> </button>
+     <div id="tableModalContent"></div>
+    </div>
+   </div><!-- Game Modal -->
+   <div class="modal-overlay" id="gameModal">
+    <div class="modal-content" style="max-width: 600px;"><button onclick="closeGameModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white" aria-label="Хаах"> <i data-lucide="x" style="width:24px;height:24px;"></i> </button>
+     <div id="gameModalContent"></div>
+    </div>
+   </div>
+  </div>
+  <script>
+// ── Config & SDK ──
+const defaultConfig = {
+  main_title: 'Хүрдний Мастер',
+  background_color: '#0f0f1a',
+  surface_color: '#1a1a2e',
+  text_color: '#e2e8f0',
+  primary_color: '#8b5cf6',
+  accent_color: '#ec4899',
+  font_family: 'Rubik',
+  font_size: 16
+};
+
+function applyConfig(cfg) {
+  const t = document.getElementById('mainTitle');
+  if (t) t.textContent = cfg.main_title || defaultConfig.main_title;
+  document.body.style.background = cfg.background_color || defaultConfig.background_color;
+  document.body.style.color = cfg.text_color || defaultConfig.text_color;
+  document.body.style.fontFamily = `${cfg.font_family || defaultConfig.font_family}, Noto Sans Mongolian, sans-serif`;
+}
+
+if (window.elementSdk) {
+  window.elementSdk.init({
+    defaultConfig,
+    onConfigChange: async (cfg) => applyConfig(cfg),
+    mapToCapabilities: (cfg) => ({
+      recolorables: [
+        { get: () => cfg.background_color || defaultConfig.background_color, set: v => { cfg.background_color = v; window.elementSdk.setConfig({ background_color: v }); }},
+        { get: () => cfg.surface_color || defaultConfig.surface_color, set: v => { cfg.surface_color = v; window.elementSdk.setConfig({ surface_color: v }); }},
+        { get: () => cfg.text_color || defaultConfig.text_color, set: v => { cfg.text_color = v; window.elementSdk.setConfig({ text_color: v }); }},
+        { get: () => cfg.primary_color || defaultConfig.primary_color, set: v => { cfg.primary_color = v; window.elementSdk.setConfig({ primary_color: v }); }},
+        { get: () => cfg.accent_color || defaultConfig.accent_color, set: v => { cfg.accent_color = v; window.elementSdk.setConfig({ accent_color: v }); }}
+      ],
+      borderables: [],
+      fontEditable: { get: () => cfg.font_family || defaultConfig.font_family, set: v => { cfg.font_family = v; window.elementSdk.setConfig({ font_family: v }); }},
+      fontSizeable: { get: () => cfg.font_size || defaultConfig.font_size, set: v => { cfg.font_size = v; window.elementSdk.setConfig({ font_size: v }); }}
+    }),
+    mapToEditPanelValues: (cfg) => new Map([['main_title', cfg.main_title || defaultConfig.main_title]])
+  });
+}
+
+// ── Wheel Colors ──
+const WHEEL_COLORS = ['#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#06b6d4','#f97316','#84cc16','#a855f7'];
+
+// ── Build Tables Grid ──
+function buildTablesGrid() {
+  const grid = document.getElementById('tablesGrid');
+  grid.innerHTML = '';
+  for (let n = 1; n <= 10; n++) {
+    const card = document.createElement('div');
+    card.className = 'table-card neon-border p-4 fade-up';
+    card.setAttribute('data-table', n);
+    card.style.animationDelay = `${n * 0.05}s`;
+    card.onclick = () => openTableModal(n);
+    
+    const progress = window._tableProgress[n - 1];
+    const isPassed = progress && progress.passed;
+    
+    card.innerHTML = `
+      <div class="flex items-center gap-3 mb-3">
+        <div class="table-num">${n}</div>
+        <div>
+          <div class="font-bold text-lg">${n}-ийн хүрд</div>
+          <div class="text-gray-400 text-sm">10 бодлого</div>
+        </div>
+      </div>
+      <div class="text-xs text-gray-500 mb-2">${n}×1 = ${n} ... ${n}×10 = ${n*10}</div>
+      <div class="unlock-badge text-xs font-semibold">${isPassed ? '✅ Нээгдсэн' : '🔒 Сорилто'}</div>
+    `;
+    grid.appendChild(card);
+    
+    if (isPassed) {
+      card.style.borderColor = '#10b981';
+      card.style.boxShadow = '0 0 15px rgba(16,185,129,0.3), inset 0 0 15px rgba(16,185,129,0.05)';
+    }
+  }
+}
+
+// ── Table Progress Storage ──
+window._tableProgress = {};
+
+// ── Table Modal - Quiz Mode ──
+function openTableModal(n) {
+  const modal = document.getElementById('tableModal');
+  const content = document.getElementById('tableModalContent');
+  
+  // Generate 10 random problems for this table
+  const problems = [];
+  for (let i = 0; i < 10; i++) {
+    const multiplier = Math.ceil(Math.random() * 10);
+    problems.push({ a: n, b: multiplier });
+  }
+  
+  window._tableQuiz = {
+    tableNum: n,
+    problems,
+    currentIdx: 0,
+    correct: 0,
+    answered: []
+  };
+  
+  showTableQuizQuestion(content);
+  modal.classList.add('active');
+  lucide.createIcons();
+}
+
+function showTableQuizQuestion(content) {
+  const quiz = window._tableQuiz;
+  const animal = TABLE_ANIMALS[quiz.tableNum - 1];
+  const problem = quiz.problems[quiz.currentIdx];
+  
+  content.innerHTML = `
+    <div style="background: linear-gradient(135deg, ${animal.bgColor}40, ${animal.bgColor}20); border-radius: 16px; padding: 24px; margin-bottom: 20px; border: 2px solid ${animal.bgColor};">
+      <div class="text-center mb-4">
+        <div style="font-size: 64px; margin-bottom: 12px;">${animal.emoji}</div>
+        <h3 class="text-2xl font-bold mb-1" style="color: ${animal.bgLight};">${animal.name}</h3>
+        <p style="color: ${animal.bgLight}; opacity: 0.9; font-size: 14px; margin-bottom: 12px;">${quiz.tableNum}-ийн хүрд - Сорилт</p>
+        <p class="text-gray-400">Бодлого ${quiz.currentIdx + 1}/10</p>
+      </div>
+      
+      <div class="score-bar mb-4">
+        <div class="score-fill" style="width:${(quiz.currentIdx / 10) * 100}%; background: ${animal.bgColor};"></div>
+      </div>
+    </div>
+    
+    <div class="result-box mb-6 text-4xl">
+      <span>${problem.a} × ${problem.b} = ?</span>
+    </div>
+    
+    <div class="flex gap-2 justify-center mb-4">
+      <input type="number" id="tableQuizAns" class="bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-center text-2xl flex-1 text-white" placeholder="?" autofocus>
+      <button class="spin-btn" onclick="checkTableQuizAnswer()">Шалгах</button>
+    </div>
+    
+    <div id="tableQuizFeedback" class="text-center font-bold text-lg min-h-8"></div>
+  `;
+  
+  document.getElementById('tableQuizAns').focus();
+}
+
+window.checkTableQuizAnswer = function() {
+  const quiz = window._tableQuiz;
+  const problem = quiz.problems[quiz.currentIdx];
+  const userAnswer = parseInt(document.getElementById('tableQuizAns').value);
+  const correct = problem.a * problem.b;
+  const feedbackEl = document.getElementById('tableQuizFeedback');
+  
+  if (userAnswer === correct) {
+    quiz.correct++;
+    feedbackEl.innerHTML = `<span style="color:#10b981;">✅ Зөв!</span>`;
+    quiz.answered.push(true);
+  } else {
+    feedbackEl.innerHTML = `<span style="color:#ef4444;">❌ Буруу! Зөв хариу: ${correct}</span>`;
+    quiz.answered.push(false);
+  }
+  
+  setTimeout(() => {
+    quiz.currentIdx++;
+    if (quiz.currentIdx < 10) {
+      const content = document.getElementById('tableModalContent');
+      showTableQuizQuestion(content);
+    } else {
+      showTableQuizResults();
+    }
+  }, 1200);
+};
+
+function showTableQuizResults() {
+  const quiz = window._tableQuiz;
+  const animal = TABLE_ANIMALS[quiz.tableNum - 1];
+  const score = Math.round((quiz.correct / 10) * 100);
+  const passed = score >= 80;
+  const modal = document.getElementById('tableModal');
+  const content = document.getElementById('tableModalContent');
+  
+  // Store progress
+  window._tableProgress[quiz.tableNum] = { score, passed, date: Date.now() };
+  
+  const nextLevel = quiz.tableNum + 1;
+  const unlocked = passed && nextLevel <= 10;
+  
+  content.innerHTML = `
+    <div class="text-center" style="background: linear-gradient(135deg, ${animal.bgColor}40, ${animal.bgColor}20); border-radius: 16px; padding: 24px; margin-bottom: 20px; border: 2px solid ${animal.bgColor};">
+      <div style="font-size: 64px; margin-bottom: 12px;">${animal.emoji}</div>
+      <h3 class="text-3xl font-bold mb-2" style="color: ${animal.bgLight};">${animal.name}</h3>
+      <p style="color: ${animal.bgLight}; font-size: 18px; font-weight: bold;">${score}%</p>
+      <p class="text-gray-400 mb-4">${quiz.correct}/10 зөв</p>
+    </div>
+    
+    ${passed ? `
+      <div class="bg-green-900/20 border border-green-600 rounded-lg p-4 mb-6 text-green-400">
+        <p class="font-bold text-lg mb-1">✅ Даалгавар биелүүллээ!</p>
+        <p class="text-sm">Та ${nextLevel}-ийн хүрдийг нээж болно</p>
+      </div>
+    ` : `
+      <div class="bg-orange-900/20 border border-orange-600 rounded-lg p-4 mb-6 text-orange-400">
+        <p class="font-bold text-lg mb-1">⚠️ Бараг л боллоо!</p>
+        <p class="text-sm">80% авахын тулд дахин үзүүрээй</p>
+      </div>
+    `}
+    
+    <div class="flex gap-3 justify-center">
+      <button class="spin-btn" onclick="openTableModal(${quiz.tableNum})">Дахин оролдох</button>
+      ${unlocked ? `<button class="spin-btn" onclick="openTableModal(${nextLevel})">Дараа хүрд →</button>` : ''}
+      <button class="spin-btn" onclick="closeTableModal()" style="background:linear-gradient(135deg, #6b7280, #4b5563);">Буцах</button>
+    </div>
+  `;
+  
+  lucide.createIcons();
+}
+
+function closeTableModal() { 
+  document.getElementById('tableModal').classList.remove('active');
+}
+
+// ── Update table cards to show progress ──
+function updateTableCardAppearance(n) {
+  const progress = window._tableProgress[n];
+  const card = document.querySelector(`[data-table="${n}"]`);
+  if (!card) return;
+  
+  if (progress && progress.passed) {
+    card.style.borderColor = '#10b981';
+    card.style.boxShadow = '0 0 15px rgba(16,185,129,0.3), inset 0 0 15px rgba(16,185,129,0.05)';
+    const badge = card.querySelector('.unlock-badge');
+    if (badge) badge.innerHTML = '✅ Нээгдсэн';
+  }
+}
+
+// ── Games Data ──
+const GAMES = [
+  { id: 'spin_answer', icon: '🎡', title: 'Хүрд эргүүлэх', desc: 'Хүрдийг эргүүлж бодлого авах', tag: 'Хялбар', tagColor: '#10b981' },
+  { id: 'double_spin', icon: '🎰', title: 'Давхар хүрд', desc: '2 хүрд эргүүлж үржүүлэх', tag: 'Дунд', tagColor: '#f59e0b' },
+  { id: 'speed_spin', icon: '⚡', title: 'Хурдны хүрд', desc: 'Цаг дотор олон бодлого бод', tag: 'Хурд', tagColor: '#ef4444' },
+  { id: 'mystery', icon: '🔮', title: 'Нууцлаг хүрд', desc: 'Хариултаас бодлогыг ол', tag: 'Сорилт', tagColor: '#8b5cf6' },
+  { id: 'chain', icon: '🔗', title: 'Гинжин хүрд', desc: 'Дараалсан бодлогуудыг бод', tag: 'Тэвчээр', tagColor: '#3b82f6' },
+  { id: 'battle', icon: '⚔️', title: 'Тоон тулаан', desc: 'Хүрднээс хамгийн их оноо цугла', tag: 'Хэцүү', tagColor: '#ec4899' }
+];
+
+function buildGamesGrid() {
+  const grid = document.getElementById('gamesGrid');
+  grid.innerHTML = '';
+  GAMES.forEach((g, i) => {
+    const card = document.createElement('div');
+    card.className = 'game-card neon-border fade-up';
+    card.style.animationDelay = `${i * 0.08}s`;
+    card.onclick = () => openGame(g.id);
+    card.innerHTML = `
+      <div class="text-4xl mb-3">${g.icon}</div>
+      <h3 class="text-xl font-bold mb-1">${g.title}</h3>
+      <p class="text-gray-400 text-sm mb-3">${g.desc}</p>
+      <span class="tag" style="background:${g.tagColor}22; color:${g.tagColor};">${g.tag}</span>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ── Animal emojis and background colors for each table (1-10) ──
+const TABLE_ANIMALS = [
+  { emoji: '🐘', name: 'Заан', bgColor: '#7c3aed', bgLight: '#a78bfa' },       // 1 - Purple
+  { emoji: '🦅', name: 'Тогоруу шувуу', bgColor: '#dc2626', bgLight: '#fca5a5' }, // 2 - Red
+  { emoji: '🐰', name: 'Туулай', bgColor: '#0891b2', bgLight: '#67e8f9' },     // 3 - Cyan
+  { emoji: '🦁', name: 'Арслан', bgColor: '#f59e0b', bgLight: '#fcd34d' },     // 4 - Amber
+  { emoji: '🐯', name: 'Бар', bgColor: '#ea580c', bgLight: '#fdba74' },        // 5 - Orange
+  { emoji: '🐺', name: 'Чоно', bgColor: '#6366f1', bgLight: '#a5b4fc' },       // 6 - Indigo
+  { emoji: '🦊', name: 'Үнэг', bgColor: '#d97706', bgLight: '#fbbf24' },       // 7 - Amber-dark
+  { emoji: '🐻', name: 'Баавгай', bgColor: '#92400e', bgLight: '#b45309' },    // 8 - Brown
+  { emoji: '🐄', name: 'Буга', bgColor: '#059669', bgLight: '#6ee7b7' },       // 9 - Green
+  { emoji: '🐑', name: 'Хонь', bgColor: '#1e40af', bgLight: '#60a5fa' }        // 10 - Blue
+];
+
+// ── Wheel SVG Generator ──
+function createWheelSVG(items, id, tableNum) {
+  const n = items.length;
+  const anglePerSlice = 360 / n;
+  let paths = '';
+  const cx = 150, cy = 150, r = 140;
+  items.forEach((item, i) => {
+    const startAngle = i * anglePerSlice - 90;
+    const endAngle = startAngle + anglePerSlice;
+    const startRad = startAngle * Math.PI / 180;
+    const endRad = endAngle * Math.PI / 180;
+    const x1 = cx + r * Math.cos(startRad);
+    const y1 = cy + r * Math.sin(startRad);
+    const x2 = cx + r * Math.cos(endRad);
+    const y2 = cy + r * Math.sin(endRad);
+    const large = anglePerSlice > 180 ? 1 : 0;
+    const midRad = (startAngle + anglePerSlice / 2) * Math.PI / 180;
+    const tx = cx + r * 0.65 * Math.cos(midRad);
+    const ty = cy + r * 0.65 * Math.sin(midRad);
+    const color = WHEEL_COLORS[i % WHEEL_COLORS.length];
+    paths += `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z" fill="${color}" stroke="#0f0f1a" stroke-width="2"/>`;
+    paths += `<text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central" fill="white" font-weight="700" font-size="${n > 8 ? 14 : 18}">${item}</text>`;
+  });
+  
+  const animal = TABLE_ANIMALS[(tableNum || 1) - 1];
+  
+  return `<div class="wheel-container" style="background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1), transparent 50%), url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text x=%2250%22 y=%2260%22 font-size=%2280%22 text-anchor=%22middle%22>${animal.emoji}</text></svg>'); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.85;">
+    <div class="wheel-pointer"></div>
+    <svg class="wheel-svg" id="${id}" viewBox="0 0 300 300">${paths}
+      <circle cx="150" cy="150" r="22" fill="#0f0f1a" stroke="#8b5cf6" stroke-width="3"/>
+      <text x="150" y="150" text-anchor="middle" dominant-baseline="central" fill="#8b5cf6" font-weight="900" font-size="12">GO</text>
+    </svg>
+  </div>`;
+}
+
+// ── Spin Wheel Logic ──
+let spinning = {};
+function spinWheel(svgId, items, callback) {
+  if (spinning[svgId]) return;
+  spinning[svgId] = true;
+  const svg = document.getElementById(svgId);
+  const picked = Math.floor(Math.random() * items.length);
+  const anglePerSlice = 360 / items.length;
+  const targetAngle = 360 * 5 + (360 - (picked * anglePerSlice + anglePerSlice / 2));
+  const currentRotation = parseFloat(svg.dataset.rotation || 0);
+  const newRotation = currentRotation + targetAngle;
+  svg.dataset.rotation = newRotation;
+  svg.style.transform = `rotate(${newRotation}deg)`;
+  setTimeout(() => {
+    spinning[svgId] = false;
+    callback(items[picked], picked);
+  }, 4200);
+}
+
+// ── Game Modal ──
+function openGame(id) {
+  const modal = document.getElementById('gameModal');
+  const content = document.getElementById('gameModalContent');
+  content.innerHTML = '';
+
+  if (id === 'spin_answer') gameSpinAnswer(content);
+  else if (id === 'double_spin') gameDoubleSpin(content);
+  else if (id === 'speed_spin') gameSpeedSpin(content);
+  else if (id === 'mystery') gameMystery(content);
+  else if (id === 'chain') gameChain(content);
+  else if (id === 'battle') gameBattle(content);
+
+  modal.classList.add('active');
+  lucide.createIcons();
+}
+function closeGameModal() {
+  document.getElementById('gameModal').classList.remove('active');
+  // Stop any timers
+  if (window._gameTimer) { clearInterval(window._gameTimer); window._gameTimer = null; }
+}
+
+// ── Game 1: Spin & Answer ──
+function gameSpinAnswer(el) {
+  el.innerHTML = `
+    <h3 class="text-2xl font-bold text-center mb-4">🎡 Хүрд эргүүлэх</h3>
+    <p class="text-gray-400 text-center text-sm mb-4">Тоо гарна, бодлого бод</p>
+    <div class="text-center">
+      <button class="spin-btn" id="spin1Btn" onclick="doSpin1()">Шинэ бодлого</button>
+    </div>
+    <div id="spin1Question" class="result-box mt-4" style="display:none;"></div>
+    <div id="spin1Input" style="display:none;" class="mt-3 flex gap-2 justify-center">
+      <input type="number" id="spin1Ans" class="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-center text-xl w-32 text-white" placeholder="?">
+      <button class="spin-btn" onclick="checkSpin1()">Шалгах</button>
+    </div>
+    <div id="spin1Result" class="text-center mt-2 font-bold text-lg"></div>
+    <div class="mt-3 text-center text-gray-400" id="spin1Score">Оноо: 0/0</div>
+  `;
+}
+window._spin1Data = {};
+window.doSpin1 = function() {
+  const a = Math.ceil(Math.random() * 10);
+  const b = Math.ceil(Math.random() * 10);
+  window._spin1Data = { a, b };
+  document.getElementById('spin1Question').style.display = 'flex';
+  document.getElementById('spin1Question').innerHTML = `<span>${a} × ${b} = ?</span>`;
+  document.getElementById('spin1Input').style.display = 'flex';
+  document.getElementById('spin1Ans').value = '';
+  document.getElementById('spin1Ans').focus();
+  document.getElementById('spin1Result').textContent = '';
+};
+window.checkSpin1 = function() {
+  const ans = parseInt(document.getElementById('spin1Ans').value);
+  const correct = window._spin1Data.a * window._spin1Data.b;
+  const el = document.getElementById('spin1Result');
+  window._spin1Total = (window._spin1Total || 0) + 1;
+  if (ans === correct) {
+    window._spin1Score = (window._spin1Score || 0) + 1;
+    el.innerHTML = `<span style="color:#10b981;">✅ Зөв! ${window._spin1Data.a} × ${window._spin1Data.b} = ${correct}</span>`;
+  } else {
+    el.innerHTML = `<span style="color:#ef4444;">❌ Буруу! Зөв хариу: ${correct}</span>`;
+  }
+  document.getElementById('spin1Score').textContent = `Оноо: ${window._spin1Score||0}/${window._spin1Total}`;
+};
+
+// ── Game 2: Double Spin ──
+function gameDoubleSpin(el) {
+  el.innerHTML = `
+    <h3 class="text-2xl font-bold text-center mb-4">🎰 Давхар хүрд</h3>
+    <p class="text-gray-400 text-center text-sm mb-4">2 тоог авч үржүүл</p>
+    <div class="text-center">
+      <button class="spin-btn" id="dspinBtn" onclick="doDoubleSpin()">Шинэ 2 тоо авах</button>
+    </div>
+    <div id="dspinQ" class="result-box mt-4" style="display:none;"></div>
+    <div id="dspinInput" style="display:none;" class="mt-3 flex gap-2 justify-center">
+      <input type="number" id="dspinAns" class="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-center text-xl w-32 text-white" placeholder="?">
+      <button class="spin-btn" onclick="checkDoubleSpin()">Шалгах</button>
+    </div>
+    <div id="dspinResult" class="text-center mt-2 font-bold text-lg"></div>
+    <div class="mt-3 text-center text-gray-400" id="dspinScore">Оноо: 0/0</div>
+  `;
+}
+window._dspin = {};
+window.doDoubleSpin = function() {
+  const a = Math.ceil(Math.random() * 10);
+  const b = Math.ceil(Math.random() * 10);
+  window._dspin = { a, b };
+  document.getElementById('dspinQ').style.display = 'flex';
+  document.getElementById('dspinQ').innerHTML = `<span>${a} × ${b} = ?</span>`;
+  document.getElementById('dspinInput').style.display = 'flex';
+  document.getElementById('dspinAns').value = '';
+  document.getElementById('dspinAns').focus();
+  document.getElementById('dspinResult').textContent = '';
+};
+window.checkDoubleSpin = function() {
+  const ans = parseInt(document.getElementById('dspinAns').value);
+  const correct = window._dspin.a * window._dspin.b;
+  const el = document.getElementById('dspinResult');
+  window._dspinTotal = (window._dspinTotal || 0) + 1;
+  if (ans === correct) {
+    window._dspinScore = (window._dspinScore || 0) + 1;
+    el.innerHTML = `<span style="color:#10b981;">✅ Зөв!</span>`;
+  } else {
+    el.innerHTML = `<span style="color:#ef4444;">❌ Буруу! Зөв: ${correct}</span>`;
+  }
+  document.getElementById('dspinScore').textContent = `Оноо: ${window._dspinScore||0}/${window._dspinTotal}`;
+};
+
+// ── Game 3: Speed Spin ──
+function gameSpeedSpin(el) {
+  el.innerHTML = `
+    <h3 class="text-2xl font-bold text-center mb-4">⚡ Хурдны хүрд</h3>
+    <p class="text-gray-400 text-center text-sm mb-4">30 секундэд аль болох олон бодлого бод</p>
+    <div class="text-center mt-4">
+      <div class="text-3xl font-black mb-2" id="speedTimer">30s</div>
+      <button class="spin-btn" id="speedBtn" onclick="startSpeedGame()">Эхлүүлэх</button>
+    </div>
+    <div id="speedQ" class="result-box mt-4" style="display:none;"></div>
+    <div id="speedInput" style="display:none;" class="mt-3 flex gap-2 justify-center">
+      <input type="number" id="speedAns" class="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-center text-xl w-32 text-white" placeholder="?">
+      <button class="spin-btn" onclick="checkSpeed()">→</button>
+    </div>
+    <div id="speedResult" class="text-center mt-2 font-bold text-lg"></div>
+    <div class="mt-3 text-center text-gray-400" id="speedScore">Оноо: 0</div>
+  `;
+}
+window._speed = { score: 0, active: false };
+window.startSpeedGame = function() {
+  window._speed = { score: 0, active: true };
+  let time = 30;
+  document.getElementById('speedBtn').style.display = 'none';
+  document.getElementById('speedTimer').textContent = '30s';
+  document.getElementById('speedScore').textContent = 'Оноо: 0';
+  window._gameTimer = setInterval(() => {
+    time--;
+    document.getElementById('speedTimer').textContent = time + 's';
+    if (time <= 0) {
+      clearInterval(window._gameTimer);
+      window._speed.active = false;
+      document.getElementById('speedQ').innerHTML = `<span>🏁 Дууслаа! Нийт оноо: ${window._speed.score}</span>`;
+      document.getElementById('speedInput').style.display = 'none';
+      document.getElementById('speedBtn').style.display = 'inline-block';
+      document.getElementById('speedBtn').textContent = 'Дахин эхлүүлэх';
+    }
+  }, 1000);
+  nextSpeedQ();
+};
+function nextSpeedQ() {
+  const a = Math.ceil(Math.random()*10), b = Math.ceil(Math.random()*10);
+  window._speed.a = a; window._speed.b = b;
+  document.getElementById('speedQ').style.display = 'flex';
+  document.getElementById('speedQ').innerHTML = `<span>${a} × ${b} = ?</span>`;
+  document.getElementById('speedInput').style.display = 'flex';
+  document.getElementById('speedAns').value = '';
+  document.getElementById('speedAns').focus();
+  document.getElementById('speedResult').textContent = '';
+}
+window.checkSpeed = function() {
+  if (!window._speed.active) return;
+  const ans = parseInt(document.getElementById('speedAns').value);
+  if (ans === window._speed.a * window._speed.b) {
+    window._speed.score++;
+    document.getElementById('speedResult').innerHTML = `<span style="color:#10b981;">✅</span>`;
+  } else {
+    document.getElementById('speedResult').innerHTML = `<span style="color:#ef4444;">❌ ${window._speed.a * window._speed.b}</span>`;
+  }
+  document.getElementById('speedScore').textContent = `Оноо: ${window._speed.score}`;
+  setTimeout(nextSpeedQ, 400);
+};
+
+// ── Game 4: Mystery ──
+function gameMystery(el) {
+  el.innerHTML = `
+    <h3 class="text-2xl font-bold text-center mb-4">🔮 Нууцлаг хүрд</h3>
+    <p class="text-gray-400 text-center text-sm mb-4">Хариулт гарна, бодлогыг олоорой!</p>
+    <div class="text-center">
+      <button class="spin-btn" id="mystBtn" onclick="doMystery()">Шинэ хариулт авах</button>
+    </div>
+    <div id="mystQ" class="result-box mt-4" style="display:none;"></div>
+    <div id="mystInput" style="display:none;" class="mt-3 text-center">
+      <p class="text-gray-400 mb-2">Энэ хариултыг гаргах 2 тоог оруул:</p>
+      <div class="flex gap-2 justify-center">
+        <input type="number" id="mystA" class="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-center w-20 text-white" placeholder="?">
+        <span class="text-2xl font-bold self-center">×</span>
+        <input type="number" id="mystB" class="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-center w-20 text-white" placeholder="?">
+        <button class="spin-btn" onclick="checkMystery()">Шалгах</button>
+      </div>
+    </div>
+    <div id="mystResult" class="text-center mt-2 font-bold text-lg"></div>
+  `;
+}
+window._myst = {};
+window.doMystery = function() {
+  const answers = [6,12,18,24,30,36,42,48,54,60];
+  const val = answers[Math.floor(Math.random() * answers.length)];
+  window._myst.target = val;
+  document.getElementById('mystQ').style.display = 'flex';
+  document.getElementById('mystQ').innerHTML = `<span>? × ? = ${val}</span>`;
+  document.getElementById('mystInput').style.display = 'block';
+  document.getElementById('mystA').value = '';
+  document.getElementById('mystB').value = '';
+  document.getElementById('mystA').focus();
+  document.getElementById('mystResult').textContent = '';
+};
+window.checkMystery = function() {
+  const a = parseInt(document.getElementById('mystA').value);
+  const b = parseInt(document.getElementById('mystB').value);
+  const el = document.getElementById('mystResult');
+  if (a * b === window._myst.target && a >= 1 && a <= 10 && b >= 1 && b <= 10) {
+    el.innerHTML = `<span style="color:#10b981;">✅ Зөв! ${a} × ${b} = ${window._myst.target}</span>`;
+  } else if (a * b === window._myst.target) {
+    el.innerHTML = `<span style="color:#f59e0b;">⚠️ Зөв боловч 1-10 хооронд байх ёстой</span>`;
+  } else {
+    el.innerHTML = `<span style="color:#ef4444;">❌ ${a} × ${b} = ${a*b}, ${window._myst.target} биш</span>`;
+  }
+};
+
+// ── Game 5: Chain ──
+function gameChain(el) {
+  el.innerHTML = `
+    <h3 class="text-2xl font-bold text-center mb-4">🔗 Гинжин хүрд</h3>
+    <p class="text-gray-400 text-center text-sm mb-4">5 дараалсан бодлого бод. Бүгдийг зөв бод!</p>
+    <div class="text-center mt-4">
+      <button class="spin-btn" id="chainBtn" onclick="startChain()">Эхлүүлэх</button>
+    </div>
+    <div id="chainProgress" class="mt-4"></div>
+    <div id="chainQ" class="result-box mt-3" style="display:none;"></div>
+    <div id="chainInput" style="display:none;" class="mt-3 flex gap-2 justify-center">
+      <input type="number" id="chainAns" class="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-center text-xl w-32 text-white" placeholder="?">
+      <button class="spin-btn" onclick="checkChain()">Шалгах</button>
+    </div>
+    <div id="chainResult" class="text-center mt-2 font-bold text-lg"></div>
+  `;
+}
+window._chain = { step: 0, correct: 0, base: 0 };
+window.startChain = function() {
+  window._chain = { step: 0, correct: 0, base: 0 };
+  document.getElementById('chainResult').textContent = '';
+  updateChainProgress();
+  const base = Math.ceil(Math.random() * 10);
+  window._chain.base = base;
+  nextChainQ();
+};
+function updateChainProgress() {
+  const el = document.getElementById('chainProgress');
+  let dots = '';
+  for (let i = 0; i < 5; i++) {
+    const color = i < window._chain.step ? (window._chain.correct > i ? '#10b981' : '#ef4444') : '#4a5568';
+    dots += `<span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:${color};margin:0 4px;line-height:24px;text-align:center;font-size:12px;font-weight:bold;color:white;">${i+1}</span>`;
+  }
+  el.innerHTML = `<div class="text-center">${dots}</div>`;
+}
+function nextChainQ() {
+  if (window._chain.step >= 5) {
+    document.getElementById('chainQ').style.display = 'flex';
+    document.getElementById('chainQ').innerHTML = `<span>${window._chain.correct === 5 ? '🎉 Бүгд зөв! Маш сайн!' : `${window._chain.correct}/5 зөв`}</span>`;
+    document.getElementById('chainInput').style.display = 'none';
+    document.getElementById('chainBtn').textContent = 'Дахин эхлүүлэх';
+    return;
+  }
+  const b = window._chain.step + 1 + Math.floor(Math.random() * 5);
+  const clampedB = Math.min(b, 10);
+  window._chain.b = clampedB;
+  document.getElementById('chainQ').style.display = 'flex';
+  document.getElementById('chainQ').innerHTML = `<span>Бодлого ${window._chain.step+1}/5: ${window._chain.base} × ${clampedB} = ?</span>`;
+  document.getElementById('chainInput').style.display = 'flex';
+  document.getElementById('chainAns').value = '';
+  document.getElementById('chainAns').focus();
+  document.getElementById('chainResult').textContent = '';
+}
+window.checkChain = function() {
+  const ans = parseInt(document.getElementById('chainAns').value);
+  const correct = window._chain.base * window._chain.b;
+  if (ans === correct) window._chain.correct++;
+  window._chain.step++;
+  updateChainProgress();
+  const el = document.getElementById('chainResult');
+  if (ans === correct) {
+    el.innerHTML = `<span style="color:#10b981;">✅ Зөв!</span>`;
+  } else {
+    el.innerHTML = `<span style="color:#ef4444;">❌ Зөв хариу: ${correct}</span>`;
+  }
+  setTimeout(nextChainQ, 800);
+};
+
+// ── Game 6: Battle ──
+function gameBattle(el) {
+  el.innerHTML = `
+    <h3 class="text-2xl font-bold text-center mb-4">⚔️ Тоон тулаан</h3>
+    <p class="text-gray-400 text-center text-sm mb-4">10 бодлого бод, 100 оноо авахыг зорь!</p>
+    <div class="text-center mt-4">
+      <button class="spin-btn" id="battleBtn" onclick="startBattle()">Тулааныг эхлүүл</button>
+    </div>
+    <div class="mt-3">
+      <div class="flex justify-between text-sm text-gray-400 mb-1"><span>Оноо</span><span id="battleScoreText">0/100</span></div>
+      <div class="score-bar"><div class="score-fill" id="battleBar" style="width:0%"></div></div>
+    </div>
+    <div id="battleQ" class="result-box mt-4" style="display:none;"></div>
+    <div id="battleInput" style="display:none;" class="mt-3 flex gap-2 justify-center">
+      <input type="number" id="battleAns" class="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-center text-xl w-32 text-white" placeholder="?">
+      <button class="spin-btn" onclick="checkBattle()">Довтлох!</button>
+    </div>
+    <div id="battleResult" class="text-center mt-2 font-bold text-lg"></div>
+    <div id="battleRound" class="text-center text-gray-500 text-sm mt-1"></div>
+  `;
+}
+window._battle = { round: 0, score: 0 };
+window.startBattle = function() {
+  window._battle = { round: 0, score: 0 };
+  document.getElementById('battleBar').style.width = '0%';
+  document.getElementById('battleScoreText').textContent = '0/100';
+  document.getElementById('battleResult').textContent = '';
+  document.getElementById('battleRound').textContent = '';
+  nextBattleQ();
+};
+function nextBattleQ() {
+  if (window._battle.round >= 10) {
+    document.getElementById('battleQ').style.display = 'flex';
+    const s = window._battle.score;
+    const emoji = s >= 90 ? '🏆' : s >= 70 ? '🥈' : s >= 50 ? '🥉' : '💪';
+    document.getElementById('battleQ').innerHTML = `<span>${emoji} Нийт оноо: ${s}/100</span>`;
+    document.getElementById('battleInput').style.display = 'none';
+    document.getElementById('battleBtn').textContent = 'Дахин тоглох';
+    document.getElementById('battleBtn').disabled = false;
+    return;
+  }
+  const b = Math.ceil(Math.random() * 10);
+  window._battle.b = b;
+  window._battle.round++;
+  document.getElementById('battleQ').style.display = 'flex';
+  document.getElementById('battleQ').innerHTML = `<span>${window._battle.base} × ${b} = ?</span>`;
+  document.getElementById('battleInput').style.display = 'flex';
+  document.getElementById('battleAns').value = '';
+  document.getElementById('battleAns').focus();
+  document.getElementById('battleResult').textContent = '';
+  document.getElementById('battleRound').textContent = `Бодлого ${window._battle.round}/10`;
+}
+window.checkBattle = function() {
+  const ans = parseInt(document.getElementById('battleAns').value);
+  const correct = window._battle.base * window._battle.b;
+  const el = document.getElementById('battleResult');
+  if (ans === correct) {
+    window._battle.score += 10;
+    el.innerHTML = `<span style="color:#10b981;">⚔️ +10 оноо!</span>`;
+  } else {
+    el.innerHTML = `<span style="color:#ef4444;">🛡️ Буруу! Зөв: ${correct}</span>`;
+  }
+  document.getElementById('battleBar').style.width = `${window._battle.score}%`;
+  document.getElementById('battleScoreText').textContent = `${window._battle.score}/100`;
+  setTimeout(nextBattleQ, 800);
+};
+
+// ── Enter key support for all inputs ──
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const active = document.activeElement;
+    if (active && active.id === 'tableQuizAns') checkTableQuizAnswer();
+    else if (active && active.id === 'spin1Ans') checkSpin1();
+    else if (active && active.id === 'dspinAns') checkDoubleSpin();
+    else if (active && active.id === 'speedAns') checkSpeed();
+    else if (active && active.id === 'mystA') checkMystery();
+    else if (active && active.id === 'mystB') checkMystery();
+    else if (active && active.id === 'chainAns') checkChain();
+    else if (active && active.id === 'battleAns') checkBattle();
+  }
+});
+
+// ── Close modals on overlay click ──
+document.getElementById('tableModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTableModal(); });
+document.getElementById('gameModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeGameModal(); });
+
+// ── Init ──
+buildTablesGrid();
+buildGamesGrid();
+lucide.createIcons();
+</script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9e928a5e801378d9',t:'MTc3NTY2NDYwOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
